@@ -16,21 +16,20 @@ class JabberClientThread extends Thread {
         return threadcount;
     }
 
-    public JabberClientThread(InetAddress addr) {
+    public JabberClientThread(InetAddress addr, int port) {
         System.out.println("Making client " + id);
         threadcount++;
         try {
-            socket = new Socket(addr, 7777);
+            socket = new Socket(addr, port);
         } catch (IOException e) {
             System.err.println("Socket failed");
             // Если создание сокета провалилось,
             // ничего ненужно чистить.
         }
         try {
-            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            in   = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             // Включаем автоматическое выталкивание:
-            out
-                    = new PrintWriter(
+            out  = new PrintWriter(
                             new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
             start();
         } catch (IOException e) {
@@ -49,13 +48,12 @@ class JabberClientThread extends Thread {
     @Override
     public void run() {
         try {
-            for (int i = 0; i < 25; i++) {
+            for (int i = 0; i < 100; i++) {
                 out.println("Client " + id + ": " + i);
                 String str = in.readLine();
                 System.out.println(str);
             }
             out.println("END");
-            System.out.println("END!!! ");
         } catch (IOException e) {
             System.err.println("IO Exception");
         } finally {
@@ -78,7 +76,7 @@ public class ClientsFactoryJSH {
         InetAddress addr = InetAddress.getByName("89.169.58.253");
         while (true) {
             if (JabberClientThread.threadCount() < MAX_THREADS) {
-                new JabberClientThread(addr);
+                new JabberClientThread(addr, 7777);
             }
             Thread.currentThread().sleep(100);
         }
