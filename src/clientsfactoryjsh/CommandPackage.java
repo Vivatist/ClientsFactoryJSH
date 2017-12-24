@@ -30,7 +30,7 @@ public class CommandPackage {
         return arguments;
     }
 
-    public String getString() {
+    public String toString() {
         String resultString = command;
         for (String s : arguments) {
             resultString = resultString + " -" + s;

@@ -23,7 +23,7 @@ class SessionThread extends Thread {
         return threadcount;
     }
 
-    // Gson gson = new Gson();
+
     private List<CommandPackage> CommandList;
 
 
@@ -76,8 +76,11 @@ class SessionThread extends Thread {
             for (int i = 0; i < Main.NUM_REQUESTS; i++) {
                 CommandPackage cp;
                 cp = getRandomCommand(CommandList);
-                String sOut = cp.getString();
-                out.println(sOut);
+
+                NetworkMessage nm = new NetworkMessage("TestUser", "123", cp.toString(), false);
+                String sOut = nm.getText();
+
+                out.println(nm.toJSON());
 
                 String sIn = "";
                 do {
@@ -85,7 +88,13 @@ class SessionThread extends Thread {
                 } while (in.ready());
                 sIn = sIn.substring(0, sIn.length() - 1);
 
-                System.out.println("Client " + id + ": Request:" + i + " " + sOut + ", Response: " + sIn);
+                nm.fromJSON(sIn);
+
+                if (!nm.getError())
+                    System.out.println("Client " + id + ": Request:" + i + " " + sOut + ", Response: " + nm.getText());
+                else
+                    System.err.println("Client " + id + ": Request:" + i + " " + sOut + ", Response: " + nm.getText());
+
                 try {
                     Thread.sleep((int) (Math.random() * Main.DELAY_REQUESTS));
                 } catch (InterruptedException ex) {
