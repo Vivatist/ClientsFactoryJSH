@@ -1,5 +1,6 @@
 package clientsfactoryjsh;
 
+import Errors.MyExceptionOfNetworkMessage;
 import org.jetbrains.annotations.Contract;
 
 import java.io.*;
@@ -24,10 +25,10 @@ class SessionThread extends Thread {
     }
 
 
-    private List<CommandPackage> CommandList;
+    private List<String> CommandList;
 
 
-    private CommandPackage getRandomCommand(List<CommandPackage> CommandList) {
+    private String getRandomCommand(List<String> CommandList) {
         if (CommandList.size() > 0) {
             int i = Math.round((float) (Math.random() * (CommandList.size() - 1)));
             return CommandList.get(i);
@@ -35,7 +36,7 @@ class SessionThread extends Thread {
     }
 
 
-    SessionThread(InetAddress addr, int port, List<CommandPackage> CommandList) {
+    SessionThread(InetAddress addr, int port, List<String> CommandList) {
         this.CommandList = CommandList;
 
         System.out.println("Making client " + id);
@@ -74,10 +75,8 @@ class SessionThread extends Thread {
 
         try {
             for (int i = 0; i < Main.NUM_REQUESTS; i++) {
-                CommandPackage cp;
-                cp = getRandomCommand(CommandList);
-
-                NetworkMessage nm = new NetworkMessage("TestUser", "123", cp.toString(), false);
+                String str = getRandomCommand(CommandList);
+                NetworkMessage nm = new NetworkMessage("TestUser", "123", str, false);
                 String sOut = nm.getText();
 
                 out.println(nm.toJSON());
@@ -104,6 +103,8 @@ class SessionThread extends Thread {
             out.println("END");
         } catch (IOException e) {
             System.err.println("IO Exception" + e);
+        } catch (MyExceptionOfNetworkMessage myExceptionOfNetworkMessage) {
+            myExceptionOfNetworkMessage.printStackTrace();
         } finally {
             // Всегда закрывает:
             try {

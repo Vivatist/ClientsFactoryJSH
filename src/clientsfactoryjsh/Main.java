@@ -1,12 +1,14 @@
 package clientsfactoryjsh;
 
 import Errors.MyExceptionOfCommandPackage;
+import Errors.MyExceptionOfNetworkMessage;
 
 import java.net.*;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Scanner;
 
 
 public class Main {
@@ -17,6 +19,8 @@ public class Main {
     static int NUM_REQUESTS;
     static int DELAY_REQUESTS;
     private static int DELAY_CLIENTS;
+
+    private static Socket socket;
 
     private static final Properties props = new Properties();
 
@@ -65,7 +69,7 @@ public class Main {
         }
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException, InterruptedException, MyExceptionOfNetworkMessage {
 
         final String settingsFilename = "Main.ini";
         System.out.println("Settings file: " + settingsFilename);
@@ -73,7 +77,7 @@ public class Main {
 
 
         InetAddress addr = InetAddress.getByName(HOST);
-        List<CommandPackage> CommandList = new ArrayList<>();
+        List<String> CommandList = new ArrayList<>();
         final String commandsFilename = "commands.ini";
         try {
 
@@ -82,13 +86,18 @@ public class Main {
             String line;
 
             while ((line = reader.readLine()) != null) {
-                try {
-                    CommandPackage cp = new CommandPackage(line);
-                    CommandList.add(cp);
-                } catch (MyExceptionOfCommandPackage myExceptionOfCommandPackage) {
-                    myExceptionOfCommandPackage.printStackTrace();
+                //удаляем комментарии
+                if (line.indexOf("#") >= 0) {
+                    String str = line.substring(line.indexOf("#") + 0);
+                    line = line.replace(str, "");
                 }
+                line = line.trim();
+                if (line.length() != 0) {
+                    CommandList.add(line);
+                }
+
             }
+
             reader.close();
             fr.close();
         } catch (IOException e) {
@@ -97,14 +106,73 @@ public class Main {
             writer.close();
         }
 
+        Scanner in = new Scanner(System.in);
+        System.out.println("\nВыберите режим работы: ");
+        System.out.println("[1] автоматический");
+        System.out.println("[2] ручной");
+        System.out.println("[*] выход");
+
+        int input = in.nextInt();
+        switch (input) {
+            case 1:
+                while (true) {
+                    if (SessionThread.threadCount() < MAX_CLIENTS) {
+                        new SessionThread(addr, PORT, CommandList);
+                    }
+                    Thread.currentThread();
+                    Thread.sleep(DELAY_CLIENTS);
+                }
+
+            case 2:
+                while (true) {
+                    System.out.println("\nВведите команду: ");
+                    Scanner sc = new Scanner(System.in);
+                    String line = sc.nextLine();
+                    NetworkMessage nm = new NetworkMessage("TestUser", "123", line, false);
+
+                    String sOut = nm.getText();
+
+                    try {
+                         socket = new Socket(addr, PORT);
+                        BufferedReader  iin = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        PrintWriter  out = new PrintWriter(
+                                new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
+
+                        out.println(nm.toJSON());
+
+                        String sIn = "";
+                        do {
+                            sIn += (char) iin.read();
+                        } while (iin.ready());
+                        sIn = sIn.substring(0, sIn.length() - 1);
+
+                        nm.fromJSON(sIn);
+
+                        if (!nm.getError())
+                            System.out.println("\u001B[33m" + "Request: " + sOut + ", Response: " + nm.getText());
+                        else
+                            System.err.println("Request: " + sOut + ", Response: " + nm.getText());
+
+
+
+                    } catch (IOException e) {
+                        // Сокет должен быть закрыт при любой
+                        // ошибке, кроме ошибки конструктора сокета:
+                        try {
+                            socket.close();
+                        } catch (IOException e2) {
+                            System.err.println("Socket not closed");
+                        }
+                    }
+                    // В противном случае сокет будет закрыт
+                    // в методе run() нити.
+
+                }
+            default:
+        }
+
 
         //главный цикл
-        while (true) {
-            if (SessionThread.threadCount() < MAX_CLIENTS) {
-                new SessionThread(addr, PORT, CommandList);
-            }
-            Thread.currentThread();
-            Thread.sleep(DELAY_CLIENTS);
-        }
+
     }
 }
