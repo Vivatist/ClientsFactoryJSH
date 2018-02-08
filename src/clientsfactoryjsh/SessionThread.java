@@ -17,11 +17,16 @@ class SessionThread extends Thread {
     private PrintWriter out;
     private static int counter = 0;
     private int id = counter++;
-    private static int threadcount = 0;
+    private static int threadCount = 0;
+    private boolean echo;
+    private static long sendingBites;
+    private static long errorsCount;
+    private static long packetCount;
+
 
     @Contract(pure = true)
-    public static int threadCount() {
-        return threadcount;
+    public static int ThreadCount() {
+        return threadCount;
     }
 
 
@@ -36,11 +41,11 @@ class SessionThread extends Thread {
     }
 
 
-    SessionThread(InetAddress addr, int port, List<String> CommandList) {
+    SessionThread(InetAddress addr, int port, List<String> CommandList, boolean echo) {
         this.CommandList = CommandList;
-
+        this.echo = echo;
         System.out.println("Making client " + id);
-        threadcount++;
+        threadCount++;
 
 
         try {
@@ -76,9 +81,10 @@ class SessionThread extends Thread {
         try {
             for (int i = 0; i < Main.NUM_REQUESTS; i++) {
                 String str = getRandomCommand(CommandList);
+                if (echo) str = "echo -" + str;
                 NetworkMessage nm = new NetworkMessage("TestUser", "123", str, false);
                 String sOut = nm.getText();
-
+                sendingBites += nm.toJSON().length();
                 out.println(nm.toJSON());
 
                 String sIn = "";
@@ -88,23 +94,36 @@ class SessionThread extends Thread {
                 sIn = sIn.substring(0, sIn.length() - 1);
 
                 nm.fromJSON(sIn);
+                sendingBites += nm.toJSON().length();
+
+                if (echo) { //Если тест, то сравниваеем ответ и запрос, при несовпадении - ошибка
+                    if (!sOut.equals(nm.getText())) {
+                        errorsCount++;
+                    }
+                }
+
+                packetCount++; // увеличиваем счетчик пакетов
 
                 if (!nm.getError())
-                    System.out.println("Client " + id + ": Request:" + i + " " + sOut + ", Response: " + nm.getText());
+                    System.out.println("ERR:" + errorsCount + " PCK:" + packetCount + " SND[kB]: " + (int) Math.floor(sendingBites / 1024) + " Client " + id + ": Request:" + i + " " + sOut + ", Response: " + nm.getText());
                 else
-                    System.err.println("Client " + id + ": Request:" + i + " " + sOut + ", Response: " + nm.getText());
+                    System.err.println("ERR:" + errorsCount + " PCK:" + packetCount + " SND[kB]: " + (int) Math.floor(sendingBites / 1024) + " Client " + id + ": Request:" + i + " " + sOut + ", Response: " + nm.getText());
+
 
                 try {
                     Thread.sleep((int) (Math.random() * Main.DELAY_REQUESTS));
                 } catch (InterruptedException ex) {
                     Logger.getLogger(SessionThread.class.getName()).log(Level.SEVERE, null, ex);
+                    errorsCount++;
                 }
             }
             out.println("END");
         } catch (IOException e) {
             System.err.println("IO Exception" + e);
+            errorsCount++;
         } catch (MyExceptionOfNetworkMessage myExceptionOfNetworkMessage) {
             myExceptionOfNetworkMessage.printStackTrace();
+            errorsCount++;
         } finally {
             // Всегда закрывает:
             try {
@@ -112,7 +131,7 @@ class SessionThread extends Thread {
             } catch (IOException e) {
                 System.err.println("Socket not closed");
             }
-            threadcount--; // Завершаем эту нить
+            threadCount--; // Завершаем эту нить
         }
     }
 }

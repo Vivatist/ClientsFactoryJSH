@@ -1,6 +1,5 @@
 package clientsfactoryjsh;
 
-import Errors.MyExceptionOfCommandPackage;
 import Errors.MyExceptionOfNetworkMessage;
 
 import java.net.*;
@@ -110,14 +109,16 @@ public class Main {
         System.out.println("\nВыберите режим работы: ");
         System.out.println("[1] автоматический");
         System.out.println("[2] ручной");
+        System.out.println("[3] тест качества");
         System.out.println("[*] выход");
 
         int input = in.nextInt();
         switch (input) {
+
             case 1:
                 while (true) {
-                    if (SessionThread.threadCount() < MAX_CLIENTS) {
-                        new SessionThread(addr, PORT, CommandList);
+                    if (SessionThread.ThreadCount() < MAX_CLIENTS) {
+                        new SessionThread(addr, PORT, CommandList, false);
                     }
                     Thread.currentThread();
                     Thread.sleep(DELAY_CLIENTS);
@@ -133,9 +134,9 @@ public class Main {
                     String sOut = nm.getText();
 
                     try {
-                         socket = new Socket(addr, PORT);
-                        BufferedReader  iin = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        PrintWriter  out = new PrintWriter(
+                        socket = new Socket(addr, PORT);
+                        BufferedReader iin = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        PrintWriter out = new PrintWriter(
                                 new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())), true);
 
                         out.println(nm.toJSON());
@@ -154,7 +155,6 @@ public class Main {
                             System.err.println("Request: " + sOut + ", Response: " + nm.getText());
 
 
-
                     } catch (IOException e) {
                         // Сокет должен быть закрыт при любой
                         // ошибке, кроме ошибки конструктора сокета:
@@ -168,11 +168,21 @@ public class Main {
                     // в методе run() нити.
 
                 }
-            default:
+            case 3: {
+                MAX_CLIENTS = 100;
+                DELAY_REQUESTS = 10;
+                DELAY_CLIENTS = 10;
+                NUM_REQUESTS = 100;
+
+                while (true) {
+                    if (SessionThread.ThreadCount() < MAX_CLIENTS) {
+                        new SessionThread(addr, PORT, CommandList, true);
+                    }
+                    Thread.currentThread();
+                    Thread.sleep(DELAY_CLIENTS);
+                }
+            }
         }
-
-
-        //главный цикл
-
     }
+
 }
